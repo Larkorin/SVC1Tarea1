@@ -1,6 +1,8 @@
 package com.project.demo.logic.entity.producto;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.project.demo.logic.entity.categoria.Categoria;
 import jakarta.persistence.*;
 
@@ -22,10 +24,10 @@ public class Producto {
     private double precio;
 
     @Column(nullable = false)
-    private int CantidadStock;
+    private int cantidadStock;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "categoria_id", nullable = false)
+    @JoinColumn(name = "categoria_id", referencedColumnName = "id", nullable = false)
     private Categoria categoria;
 
     // Getters y Setters
@@ -63,11 +65,11 @@ public class Producto {
     }
 
     public int getCantidadStock() {
-        return CantidadStock;
+        return cantidadStock;
     }
 
-    public void setCantidadStock(int cantidad_en_stock) {
-        this.CantidadStock = cantidad_en_stock;
+    public void setCantidadStock(int cantidadStock) {
+        this.cantidadStock = cantidadStock;
     }
 
     public Categoria getCategoria() {
