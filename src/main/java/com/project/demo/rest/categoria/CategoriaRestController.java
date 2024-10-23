@@ -24,14 +24,8 @@ public class CategoriaRestController {
     @Autowired
     private CategoriaRepository CategoriaRepository;
 
-//    @GetMapping
-//    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'USER')")
-//    public List<Categoria> getAllProductos() {
-//        return CategoriaRepository.findAll();
-//    }
-
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'USER')")
     public ResponseEntity<?> getAll(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
