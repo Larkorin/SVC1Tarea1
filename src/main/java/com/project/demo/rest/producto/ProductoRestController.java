@@ -3,12 +3,19 @@ package com.project.demo.rest.producto;
 import com.project.demo.logic.entity.ProductoRequest;
 import com.project.demo.logic.entity.categoria.Categoria;
 import com.project.demo.logic.entity.categoria.CategoriaRepository;
+import com.project.demo.logic.entity.http.GlobalResponseHandler;
+import com.project.demo.logic.entity.http.Meta;
 import com.project.demo.logic.entity.producto.Producto;
 import com.project.demo.logic.entity.producto.ProductoRepository;
 import com.project.demo.logic.entity.rol.Role;
 import com.project.demo.logic.entity.rol.RoleEnum;
 import com.project.demo.logic.entity.user.User;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,13 +35,29 @@ public class ProductoRestController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'USER')")
-    public ResponseEntity<List<Producto>> getAllProductosConCategoria() {
-        List<Producto> productos = ProductoRepository.findByCategoriaNombre();
-        if (productos.isEmpty()) {
-            return ResponseEntity.noContent().build(); // Devuelve un 204 si no hay productos
+    public ResponseEntity<?> getAllProductosConCategoria(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+
+        Pageable pageable = PageRequest.of(page - 1, size);
+        Page<Producto> productosPage = ProductoRepository.findAll(pageable);
+        Meta meta = new Meta(request.getMethod(), request.getRequestURL().toString());
+        meta.setTotalPages(productosPage.getTotalPages());
+        meta.setTotalElements(productosPage.getTotalElements());
+        meta.setPageNumber(productosPage.getNumber() + 1);
+        meta.setPageSize(productosPage.getSize());
+
+        if (productosPage.isEmpty()) {
+            return new GlobalResponseHandler().handleResponse(
+                    "No hay productos disponibles", productosPage.getContent(), HttpStatus.NO_CONTENT, meta
+            );
         }
-        return ResponseEntity.ok(productos); // Devuelve un 200 con la lista de productos
+        return new GlobalResponseHandler().handleResponse(
+                "Productos retrieved successfully", productosPage.getContent(), HttpStatus.OK, meta
+        );
     }
+
 
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -47,7 +70,7 @@ public class ProductoRestController {
         Producto producto = new Producto();
         producto.setNombre(request.getNombre());
         producto.setDescripcion(request.getDescripcion());
-        producto.setCantidadStock(request.getStock());
+        producto.setCantidadStock(request.getCantidadStock());
         producto.setPrecio(request.getPrecio());
         producto.setCategoria(objetoCategoria.get());
 
@@ -55,18 +78,21 @@ public class ProductoRestController {
         return ResponseEntity.ok(productoSave);
     }
 
-
-
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN')")
-    public Producto updateProducto(@PathVariable Long id, @RequestBody Producto producto) {
+    public Producto updateProducto(@PathVariable Long id, @RequestBody ProductoRequest request) {
+        Optional<Categoria> objetoCategoria = Optional.ofNullable(CategoriaRepository.findByNombre(request.getNombreCategoria()));
+        if (objetoCategoria.isEmpty()) {
+            throw new EntityNotFoundException("La categoría no existe: " + request.getNombreCategoria());
+        }
+        Producto producto = new Producto();
         return ProductoRepository.findById(id)
                 .map(existingProducto -> {
-                    existingProducto.setNombre(producto.getNombre());
-                    existingProducto.setDescripcion(producto.getDescripcion());
-                    existingProducto.setPrecio(producto.getPrecio());
-                    existingProducto.setCantidadStock(producto.getCantidadStock());
-                    existingProducto.setCategoria(producto.getCategoria());
+                    existingProducto.setNombre(request.getNombre());
+                    existingProducto.setDescripcion(request.getDescripcion());
+                    existingProducto.setPrecio(request.getPrecio());
+                    existingProducto.setCantidadStock(request.getCantidadStock());
+                    existingProducto.setCategoria(objetoCategoria.get());
                     return ProductoRepository.save(existingProducto);
                 })
                 .orElseGet(() -> {
@@ -74,6 +100,7 @@ public class ProductoRestController {
                     return ProductoRepository.save(producto);
                 });
     }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN')")
